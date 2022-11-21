@@ -1,0 +1,23 @@
+{
+  "name": "p_app_life360",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Proxtx/p_app_life360.git"
+  },
+  "author": "Proxtx",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Proxtx/p_app_life360/issues"
+  },
+  "homepage": "https://github.com/Proxtx/p_app_life360#readme",
+  "dependencies": {
+    "staticmaps": "^1.10.0"
+  }
+}
