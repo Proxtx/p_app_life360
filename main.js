@@ -58,8 +58,6 @@ export class App {
           coords.push([Number(location.longitude), Number(location.latitude)]);
         }
 
-        console.log(coords.length);
-
         let polyline = {
           coords,
           color: "#000000".replace(/0/g, function () {
@@ -103,7 +101,6 @@ const findRoutsInData = (locations) => {
       Number(lastLocation.latitude),
       Number(lastLocation.longitude)
     );
-    console.log(locationTraveledThreshold, distanceTraveled);
     if (distanceTraveled >= locationTraveledThreshold) {
       if (!activeRoute) {
         activeRoute = [];
