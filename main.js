@@ -1,4 +1,4 @@
-import { registerEvent } from "../../private/events.js";
+import { registerAppEvent } from "../../private/events.js";
 import { genCombine } from "@proxtx/combine-rest/request.js";
 import { genModule } from "@proxtx/combine/combine.js";
 import StaticMaps from "staticmaps";
@@ -34,13 +34,11 @@ export class App {
 
       const options = {
         width: 600,
-        height: 400,
+        height: 600,
         tileUrl: `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${await this
           .metaApi.mapBoxAccessToken}`,
         tileSize: 512,
       };
-
-      this.map = new StaticMaps(options);
 
       let locations = await this.locationsApi.getLocationsInTimespan(
         config.pwd,
@@ -53,6 +51,7 @@ export class App {
 
       for (let route of routes) {
         let coords = [];
+        let map = new StaticMaps(options);
 
         for (let location of route) {
           coords.push([Number(location.longitude), Number(location.latitude)]);
@@ -66,14 +65,27 @@ export class App {
           width: 3,
         };
 
-        this.map.addLine(polyline);
+        map.addLine(polyline);
+
+        await map.render();
+        let buffer = await map.image.buffer("image/jpeg", {
+          quality: 75,
+        });
+
+        registerAppEvent("Life 360", {
+          app: "Life 360",
+          type: "Traveled",
+          description: `${config.user} traveled from ${
+            route[0].address ? route[0].address : "unknown"
+          } to ${
+            route[route.length - 1].address
+              ? route[route.length - 1].address
+              : "unknown"
+          }`,
+          media: [{ buffer, type: "image/jpeg" }],
+          time: route[route.length - 1].time,
+        });
       }
-
-      await this.map.render();
-
-      await this.map.image.save("my-staticmap-image.png", {
-        compressionLevel: 9,
-      });
 
       console.log("done");
     })();
@@ -101,6 +113,7 @@ const findRoutsInData = (locations) => {
       Number(lastLocation.latitude),
       Number(lastLocation.longitude)
     );
+    location.distance = distanceTraveled;
     if (distanceTraveled >= locationTraveledThreshold) {
       if (!activeRoute) {
         activeRoute = [];
