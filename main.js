@@ -1,4 +1,4 @@
-import { registerAppEvent } from "../../private/events.js";
+import { registerAppEvent } from "../../private/playbackLoader.js";
 import { genCombine } from "@proxtx/combine-rest/request.js";
 import { genModule } from "@proxtx/combine/combine.js";
 import StaticMaps from "staticmaps";
@@ -43,8 +43,8 @@ export class App {
       let locations = await this.locationsApi.getLocationsInTimespan(
         config.pwd,
         [uId],
-        Date.now() - 12 * 60 * 60 * 1000,
-        Date.now()
+        1669057009975 - 12 * 60 * 60 * 1000,
+        1669057009975
       );
 
       let routes = findRoutsInData(locations);
@@ -59,9 +59,7 @@ export class App {
 
         let polyline = {
           coords,
-          color: "#000000".replace(/0/g, function () {
-            return (~~(Math.random() * 16)).toString(16);
-          }),
+          color: "#ff0000",
           width: 3,
         };
 
@@ -72,10 +70,12 @@ export class App {
           quality: 75,
         });
 
-        registerAppEvent("Life 360", {
+        buffer = buffer.toString("base64");
+
+        /*registerAppEvent({
           app: "Life 360",
           type: "Traveled",
-          description: `${config.user} traveled from ${
+          text: `${config.userName} traveled from ${
             route[0].address ? route[0].address : "unknown"
           } to ${
             route[route.length - 1].address
@@ -83,10 +83,26 @@ export class App {
               : "unknown"
           }`,
           media: [{ buffer, type: "image/jpeg" }],
-          time: route[route.length - 1].time,
+          time: route[0].time,
+          points: config.points,
         });
-      }
 
+        if (route[route.length - 1].time - route[0].time > 1200000)
+          registerAppEvent({
+            app: "Life 360",
+            type: "Traveled",
+            text: `${config.userName} traveled from ${
+              route[0].address ? route[0].address : "unknown"
+            } to ${
+              route[route.length - 1].address
+                ? route[route.length - 1].address
+                : "unknown"
+            }`,
+            media: [{ buffer, type: "image/jpeg" }],
+            time: route[route.length - 1].time,
+            points: config.points,
+          });*/
+      }
       console.log("done");
     })();
   }
@@ -116,14 +132,14 @@ const findRoutsInData = (locations) => {
     location.distance = distanceTraveled;
     if (distanceTraveled >= locationTraveledThreshold) {
       if (!activeRoute) {
-        activeRoute = [];
+        activeRoute = [lastLocation];
       }
-      movementResetCounter = 20;
+      movementResetCounter = 10;
       activeRoute.push(location);
     } else if (activeRoute) {
       activeRoute.push(location);
       if (movementResetCounter == 0) {
-        routes.push(activeRoute);
+        if (activeRoute.length >= 15) routes.push(activeRoute);
         activeRoute = undefined;
       }
       movementResetCounter--;
