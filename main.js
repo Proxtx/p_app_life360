@@ -4,6 +4,8 @@ import { genModule } from "@proxtx/combine/combine.js";
 import StaticMaps from "staticmaps";
 
 export class App {
+  updateCheckInterval = 5 * 60 * 1000;
+
   constructor(config) {
     this.config = config;
 
@@ -27,12 +29,11 @@ export class App {
       );
 
       let users = await this.dataApi.getUsers(config.pwd);
-      let uId;
       for (let localUId in users) {
-        if (users[localUId].name == config.userName) uId = localUId;
+        if (users[localUId].name == config.userName) this.uId = localUId;
       }
 
-      const options = {
+      this.options = {
         width: 600,
         height: 600,
         tileUrl: `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${await this
@@ -40,76 +41,83 @@ export class App {
         tileSize: 512,
       };
 
-      let locations = await this.locationsApi.getLocationsInTimespan(
-        config.pwd,
-        [uId],
-        1669057009975 - 12 * 60 * 60 * 1000,
-        1669057009975
-      );
-
-      let routes = findRoutsInData(locations);
-
-      for (let route of routes) {
-        let coords = [];
-        let map = new StaticMaps(options);
-
-        for (let location of route) {
-          coords.push([Number(location.longitude), Number(location.latitude)]);
-        }
-
-        let polyline = {
-          coords,
-          color: "#ff0000",
-          width: 3,
-        };
-
-        map.addLine(polyline);
-
-        await map.render();
-        let buffer = await map.image.buffer("image/jpeg", {
-          quality: 75,
-        });
-
-        buffer = buffer.toString("base64");
-
-        /*registerAppEvent({
-          app: "Life 360",
-          type: "Traveled",
-          text: `${config.userName} traveled from ${
-            route[0].address ? route[0].address : "unknown"
-          } to ${
-            route[route.length - 1].address
-              ? route[route.length - 1].address
-              : "unknown"
-          }`,
-          media: [{ buffer, type: "image/jpeg" }],
-          time: route[0].time,
-          points: config.points,
-        });
-
-        if (route[route.length - 1].time - route[0].time > 1200000)
-          registerAppEvent({
-            app: "Life 360",
-            type: "Traveled",
-            text: `${config.userName} traveled from ${
-              route[0].address ? route[0].address : "unknown"
-            } to ${
-              route[route.length - 1].address
-                ? route[route.length - 1].address
-                : "unknown"
-            }`,
-            media: [{ buffer, type: "image/jpeg" }],
-            time: route[route.length - 1].time,
-            points: config.points,
-          });*/
+      while (true) {
+        (async () => {
+          try {
+            await this.checkForNewRoutes();
+          } catch {}
+        })();
+        await new Promise((r) => setTimeout(r, this.updateCheckInterval));
       }
-      console.log("done");
     })();
+  }
+
+  async checkForNewRoutes() {
+    let locations = await this.locationsApi.getLocationsInTimespan(
+      this.config.pwd,
+      [this.uId],
+      Date.now() - 12 * 60 * 60 * 1000,
+      Date.now()
+    );
+
+    let routes = findRoutsInData(locations);
+
+    routes.routes.reverse();
+
+    let route = routes.routes[0];
+
+    if (
+      route &&
+      route[route.length - 1].time > Date.now() - this.updateCheckInterval
+    ) {
+      registerAppEvent({
+        app: "Life 360",
+        type: "Traveled",
+        text: `${this.config.userName} traveled from ${
+          route[0].address ? route[0].address : "unknown"
+        } to ${
+          route[route.length - 1].address
+            ? route[route.length - 1].address
+            : "unknown"
+        }`,
+        media: [
+          { buffer: await this.generateMapBuffer(route), type: "image/jpeg" },
+        ],
+        time: route[0].time,
+        points: this.config.points,
+      });
+    }
+  }
+
+  async generateMapBuffer(locations) {
+    let coords = [];
+    let map = new StaticMaps(this.options);
+
+    for (let location of locations) {
+      coords.push([Number(location.longitude), Number(location.latitude)]);
+    }
+
+    let polyline = {
+      coords,
+      color: "#ff0000",
+      width: 3,
+    };
+
+    map.addLine(polyline);
+
+    await map.render();
+    let buffer = await map.image.buffer("image/jpeg", {
+      quality: 75,
+    });
+
+    buffer = buffer.toString("base64");
+
+    return buffer;
   }
 }
 
 const findRoutsInData = (locations) => {
-  let times = Object.keys(locations).sort((a, b) => b - a);
+  let times = Object.keys(locations).sort((a, b) => a - b);
   let uId = Object.keys(locations[times[0]])[0];
   let routes = [];
   let activeRoute;
@@ -122,7 +130,7 @@ const findRoutsInData = (locations) => {
     let location = locations[time][uId];
     location.time = time;
     let locationTraveledThreshold =
-      (lastLocation.time - location.time) * 0.0005556; //0.0005556 is equal to 2 km/h but in ms. Meaning 0.0005556 * 1000 * 60 * 60 = 2000 => 2KM
+      (location.time - lastLocation.time) * 0.0005556; //0.0005556 is equal to 2 km/h but in ms. Meaning 0.0005556 * 1000 * 60 * 60 = 2000 => 2KM
     let distanceTraveled = calcCrow(
       Number(location.latitude),
       Number(location.longitude),
@@ -139,7 +147,7 @@ const findRoutsInData = (locations) => {
     } else if (activeRoute) {
       activeRoute.push(location);
       if (movementResetCounter == 0) {
-        if (activeRoute.length >= 15) routes.push(activeRoute);
+        if (activeRoute.length > 15) routes.push(activeRoute);
         activeRoute = undefined;
       }
       movementResetCounter--;
@@ -148,7 +156,7 @@ const findRoutsInData = (locations) => {
     lastLocation = location;
   }
 
-  return routes;
+  return { routes };
 };
 
 const calcCrow = (lat1, lon1, lat2, lon2) => {
