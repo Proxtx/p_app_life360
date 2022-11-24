@@ -28,6 +28,10 @@ export class App {
         genModule
       );
 
+      this.mainUrl = new URL(this.config.apiUrl);
+      this.mainUrl.pathname = "/";
+      this.mainUrl = this.mainUrl.href;
+
       let users = await this.dataApi.getUsers(config.pwd);
       for (let localUId in users) {
         if (users[localUId].name == config.userName) this.uId = localUId;
@@ -45,7 +49,9 @@ export class App {
         (async () => {
           try {
             await this.checkForNewRoutes();
-          } catch {}
+          } catch (e) {
+            console.log(e);
+          }
         })();
         await new Promise((r) => setTimeout(r, this.updateCheckInterval));
       }
@@ -83,6 +89,7 @@ export class App {
         media: [
           { buffer: await this.generateMapBuffer(route), type: "image/jpeg" },
         ],
+        open: this.mainUrl,
         time: route[0].time,
         points: this.config.points,
       });
