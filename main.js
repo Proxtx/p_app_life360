@@ -2,6 +2,7 @@ import { registerAppEvent } from "../../private/playbackLoader.js";
 import { genCombine } from "@proxtx/combine-rest/request.js";
 import { genModule } from "@proxtx/combine/combine.js";
 import StaticMaps from "staticmaps";
+import { createCanvas } from "canvas";
 
 export class App {
   updateCheckInterval = 5 * 60 * 1000;
@@ -28,6 +29,12 @@ export class App {
         genModule
       );
 
+      this.statsApi = await genCombine(
+        config.apiUrl,
+        "public/stats.js",
+        genModule
+      );
+
       this.mainUrl = new URL(this.config.apiUrl);
       this.mainUrl.pathname = "/";
       this.mainUrl = this.mainUrl.href;
@@ -36,6 +43,8 @@ export class App {
       for (let localUId in users) {
         if (users[localUId].name == config.userName) this.uId = localUId;
       }
+
+      this.batteryDevelopmentLoop();
 
       this.options = {
         width: 600,
@@ -56,6 +65,55 @@ export class App {
         await new Promise((r) => setTimeout(r, this.updateCheckInterval));
       }
     })();
+  }
+
+  async batteryDevelopmentLoop() {
+    let lastDate;
+    while (true) {
+      let d = new Date();
+      if (d.getDay() != lastDate && d.getHours() > 22 && d.getMinutes() > 50) {
+        await this.generateBatteryDevelopment();
+        this.lastDate = d.getDay();
+      }
+
+      await new Promise((r) => setTimeout(r, 60 * 1000));
+    }
+  }
+
+  async generateBatteryDevelopment() {
+    let statsJobId = await this.statsApi.createStatsJob(
+      this.config.pwd,
+      this.uId,
+      Date.now() - 1000 * 60 * 60 * 24,
+      Date.now()
+    );
+
+    let result;
+    do {
+      result = await this.statsApi.statsJobStatus(this.config.pwd, statsJobId);
+    } while (!result.result);
+    let batteryData;
+    for (let entry of result.result) {
+      if (entry.title == "battery.") batteryData = entry;
+    }
+
+    let canvas = createCanvas(600, 600);
+    drawDataOnCanvas(canvas, batteryData);
+
+    registerAppEvent({
+      app: "Life360",
+      type: "Battery Development",
+      text: "Battery Development over the Day.",
+      media: [
+        {
+          buffer: canvas.toBuffer("image/png").toString("base64"),
+          type: "image/png",
+        },
+      ],
+      open: this.mainUrl,
+      time: Date.now(),
+      points: this.config.points,
+    });
   }
 
   async checkForNewRoutes() {
@@ -122,6 +180,22 @@ export class App {
     return buffer;
   }
 }
+
+const drawDataOnCanvas = (canvas, data) => {
+  let ctx = canvas.getContext("2d");
+  ctx.fillStyle = data.background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = data.color;
+  for (let pointIndex in data.dataPoints) {
+    let point = data.dataPoints[pointIndex];
+    ctx.fillRect(
+      pointIndex * (canvas.width / data.dataPoints.length),
+      canvas.height,
+      canvas.width / data.dataPoints.length + 1,
+      (canvas.height / data.max) * -point
+    );
+  }
+};
 
 const findRoutsInData = (locations) => {
   let times = Object.keys(locations).sort((a, b) => a - b);

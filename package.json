@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/Proxtx/p_app_life360#readme",
   "dependencies": {
+    "canvas": "^2.11.0",
     "staticmaps": "^1.10.0"
   }
 }
