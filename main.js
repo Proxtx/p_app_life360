@@ -73,7 +73,7 @@ export class App {
       let d = new Date();
       if (d.getDay() != lastDate && d.getHours() > 22 && d.getMinutes() > 50) {
         await this.generateBatteryDevelopment();
-        this.lastDate = d.getDay();
+        lastDate = d.getDay();
       }
 
       await new Promise((r) => setTimeout(r, 60 * 1000));
