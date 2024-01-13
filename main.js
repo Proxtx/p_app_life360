@@ -11,6 +11,7 @@ export class App {
     this.config = config;
 
     (async () => {
+      if (config.disable) return;
       this.locationsApi = await genCombine(
         config.apiUrl,
         "public/locations.js",
