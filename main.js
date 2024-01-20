@@ -210,16 +210,22 @@ const findRoutsInData = (locations) => {
   for (let time of times) {
     let location = locations[time][uId];
     location.time = time;
-    let locationTraveledThreshold =
-      (location.time - lastLocation.time) * 0.0005556; //0.0005556 is equal to 2 km/h but in ms. Meaning 0.0005556 * 1000 * 60 * 60 = 2000 => 2KM
+    let timeElapsed = location.time - lastLocation.time;
+    let locationTraveledThreshold = timeElapsed * 0.0005556; //0.0005556 is equal to 2 km/h but in ms. Meaning 0.0005556 * 1000 * 60 * 60 = 2000 => 2KM
     let distanceTraveled = calcCrow(
       Number(location.latitude),
       Number(location.longitude),
       Number(lastLocation.latitude),
       Number(lastLocation.longitude)
     );
+    let withinReasonableTimeFrame = timeElapsed < 1000 * 60 * 15;
     location.distance = distanceTraveled;
-    if (distanceTraveled >= locationTraveledThreshold) {
+    location.threshold = locationTraveledThreshold;
+    location.timeElapsed = timeElapsed;
+    if (
+      distanceTraveled >= locationTraveledThreshold &&
+      withinReasonableTimeFrame
+    ) {
       if (!activeRoute) {
         activeRoute = [lastLocation];
       }
@@ -227,7 +233,7 @@ const findRoutsInData = (locations) => {
       activeRoute.push(location);
     } else if (activeRoute) {
       activeRoute.push(location);
-      if (movementResetCounter == 0) {
+      if (movementResetCounter == 0 || !withinReasonableTimeFrame) {
         if (activeRoute.length > 15) routes.push(activeRoute);
         activeRoute = undefined;
       }
@@ -235,6 +241,10 @@ const findRoutsInData = (locations) => {
     }
 
     lastLocation = location;
+  }
+
+  if (activeRoute) {
+    routes.push(activeRoute);
   }
 
   return { routes };
