@@ -55,6 +55,21 @@ export class App {
         tileSize: 512,
       };
 
+      // DEBUG
+      /*let locations = await this.locationsApi.getLocationsInTimespan(
+        this.config.pwd,
+        [this.uId],
+        Date.now() - 12 * 60 * 60 * 1000,
+        Date.now()
+      );
+
+      let routes = findRoutsInData(locations).routes;
+
+      for (let route of routes) {
+        this.generateMapBuffer(route);
+      }
+
+      return; */
       while (true) {
         (async () => {
           try {
@@ -172,6 +187,10 @@ export class App {
     map.addLine(polyline);
 
     await map.render();
+
+    //DEBUG
+    //await map.image.save(Math.floor(Math.random() * 1000) + ".jpg");
+
     let buffer = await map.image.buffer("image/jpeg", {
       quality: 75,
     });
@@ -212,7 +231,7 @@ const findRoutsInData = (locations) => {
     let location = locations[time][uId];
     location.time = time;
     let timeElapsed = location.time - lastLocation.time;
-    let locationTraveledThreshold = timeElapsed * 0.0005556; //0.0005556 is equal to 2 km/h but in ms. Meaning 0.0005556 * 1000 * 60 * 60 = 2000 => 2KM
+    let locationTraveledThreshold = timeElapsed * 0.00005556; //0.0005556 is equal to 2 km/h but in ms. Meaning 0.0005556 * 1000 * 60 * 60 = 2000 => 2KM
     let distanceTraveled = calcCrow(
       Number(location.latitude),
       Number(location.longitude),
@@ -230,12 +249,12 @@ const findRoutsInData = (locations) => {
       if (!activeRoute) {
         activeRoute = [lastLocation];
       }
-      movementResetCounter = 10;
+      movementResetCounter = 15;
       activeRoute.push(location);
     } else if (activeRoute) {
       activeRoute.push(location);
       if (movementResetCounter == 0 || !withinReasonableTimeFrame) {
-        if (activeRoute.length > 15) routes.push(activeRoute);
+        if (activeRoute.length > 20) routes.push(activeRoute);
         activeRoute = undefined;
       }
       movementResetCounter--;
