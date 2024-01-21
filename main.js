@@ -263,10 +263,6 @@ const findRoutsInData = (locations) => {
     lastLocation = location;
   }
 
-  if (activeRoute) {
-    routes.push(activeRoute);
-  }
-
   return { routes };
 };
 
