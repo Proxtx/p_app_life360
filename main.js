@@ -87,7 +87,7 @@ export class App {
     let lastDate;
     while (true) {
       let d = new Date();
-      if (d.getDay() != lastDate && d.getHours() > 22 && d.getMinutes() > 50) {
+      if (d.getDay() != lastDate && d.getHours() > 22 && d.getMinutes() > 55) {
         await this.generateBatteryDevelopment();
         lastDate = d.getDay();
       }
